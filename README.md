@@ -11,3 +11,14 @@
 * [State](https://gist.github.com/playerx/607bf9151858c699f5ac4fe751e510b8)
 * [nats client for python](https://github.com/nats-io/nats.py)
 * [nats client for c](https://github.com/nats-io/nats.c)
+
+## Run:
+```
+nats-server
+```
+```
+ENCODE_STATE_FILE_PATH=./assets/encodeState.js node simulator/main.js
+```
+```
+python3 examples/full-game-simulation.py
+```
