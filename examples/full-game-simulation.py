@@ -1,14 +1,16 @@
 import asyncio
 import json
+import time
 
 from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrConnectionClosed, ErrNoServers, ErrTimeout
 
- # You will need nats-client to be installed:
- # `pip install asyncio-nats-client` (https://github.com/nats-io/nats.py)
+# You will need nats-client to be installed:
+# `pip install asyncio-nats-client` (https://github.com/nats-io/nats.py)
+
 
 class JokerSimulator:
-    def __init__(self, nc, serverName, randomSeed):
+    def __init__(self, nc, serverName="server", randomSeed=""):
         self._nc = nc
         self._serverName = serverName
         self._randomSeed = randomSeed
@@ -25,7 +27,7 @@ class JokerSimulator:
             ])
         )
 
-    def action(self, roomId, actionId):
+    def makeAction(self, roomId, actionId):
         return self._call(
             self._serverName + '.action',
             '_'.join([
@@ -52,25 +54,38 @@ class JokerSimulator:
             print("Nats connection closed :(")
 
 
+async def simulateOneRound(simulator, roomId):
+    actionCount = 1
+    result = await simulator.reset(roomId, 'ONLY9', '200', 1)
+
+    while not result['isRoundFinished']:
+        actionId = result['state']['validActions'][0]
+        result = await simulator.makeAction(roomId, actionId)
+        actionCount += 1
+
+    return actionCount
+
+
 # Usage
-async def run(loop):
+async def main(loop):
     nc = NATS()
 
     await nc.connect("localhost:4222", loop=loop)
 
-    simulator = JokerSimulator(nc, 'server', '')
+    simulator = JokerSimulator(nc)
 
     print('Game starting...')
 
-    result = await simulator.reset('room1', 'ONLY9', '200', 1)
+    start = time.time()
 
-    while not result['isGameFinished']:
-        actionId = result['state']['validActions'][0]
-        result = await simulator.action('room1', actionId)
+    actionCount = await asyncio.gather(*[simulateOneRound(simulator, 'room' + str(i)) for i in range(2000)])
 
-    print('Game finished!')
+    end = time.time()
 
-    await asyncio.sleep(1)
+    print('Game finished!', end-start,
+          actionCount[0] * len(actionCount))
+
+    # Benchmark (M1): 1550 rounds / sec.
 
     # Drain gracefully closes the connection, allowing all subscribers to
     # handle any pending messages inflight that the server may have sent.
@@ -79,5 +94,5 @@ async def run(loop):
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(run(loop))
+    loop.run_until_complete(main(loop))
     loop.close()
