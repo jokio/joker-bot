@@ -106,16 +106,16 @@ function encode(
 
 function getCardActionIndex(action) {
   return flatActions.findIndex(
-    x =>
-    Array.isArray(x) &&
-    x.length >= 1 &&
-    x[0][0] === action[0][0] &&
-    x[0][1] === action[0][1] &&
-    (!x[1] ||
-      (action[1] &&
-        x[1].want === action[1].want &&
-        x[1].color === action[1].color))
-  )
+    (x) =>
+      Array.isArray(x) &&
+      x.length >= 1 &&
+      x[0][0] === action[0][0] &&
+      x[0][1] === action[0][1] &&
+      (!x[1] ||
+        (action[1] &&
+          x[1].want === action[1].want &&
+          x[1].color === action[1].color))
+  );
 }
 
 function one_hot_encode(indicesParam, n) {
@@ -209,7 +209,6 @@ const statusMap = {
   FINISHED: ActionType.NIL,
 };
 
-
 // console.log(process.args);
 // from_dict(process.args[0])
 // console.log(from_dict(state1).join(""));
@@ -217,4 +216,7 @@ const statusMap = {
 // console.log(from_dict(state3).join(""));
 // console.log(from_dict(state4).join(""));
 
-module.exports = { main: ()=>null, from_dict, encode };
+module.exports = {
+  main: from_dict,
+  encode,
+};

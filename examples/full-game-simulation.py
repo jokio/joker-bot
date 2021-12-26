@@ -10,13 +10,15 @@ from nats.aio.errors import ErrConnectionClosed, ErrNoServers, ErrTimeout
 
 
 class JokerSimulator:
+    _cache = {}
+
     def __init__(self, nc, serverName="server", randomSeed=""):
         self._nc = nc
         self._serverName = serverName
         self._randomSeed = randomSeed
 
-    def reset(self, roomId, gameType, dring, position):
-        return self._call(
+    async def reset(self, roomId, gameType, dring, position):
+        result = await self._call(
             self._serverName + '.reset',
             '_'.join([
                 roomId,
@@ -27,14 +29,31 @@ class JokerSimulator:
             ])
         )
 
-    def makeAction(self, roomId, actionId):
-        return self._call(
+        self._cache[roomId] = result
+
+        return result
+
+    async def makeAction(self, roomId, actionId):
+        result = await self._call(
             self._serverName + '.action',
             '_'.join([
                 roomId,
                 str(actionId)
             ])
         )
+
+        self._cache[roomId] = result
+
+        return result
+
+    def getState(self, roomId):
+        return self._cache[roomId]['state']
+
+    def validActions(self, roomId):
+        return self._cache[roomId]['state']['validActions']
+
+    def deleteRoomCache(self, roomId):
+        del self._cache[roomId]
 
     async def _call(self, subject, message):
         try:
@@ -63,6 +82,8 @@ async def simulateOneRound(simulator, roomId):
         result = await simulator.makeAction(roomId, actionId)
         actionCount += 1
 
+    simulator.deleteRoomCache(roomId)
+
     return actionCount
 
 
@@ -78,14 +99,14 @@ async def main(loop):
 
     start = time.time()
 
-    actionCount = await asyncio.gather(*[simulateOneRound(simulator, 'room' + str(i)) for i in range(2000)])
+    simulatedResults = await asyncio.gather(*[simulateOneRound(simulator, 'room' + str(i)) for i in range(1555)])
 
     end = time.time()
 
     print('Game finished!', end-start,
-          actionCount[0] * len(actionCount))
+          simulatedResults[0] * len(simulatedResults))
 
-    # Benchmark (M1): 1550 rounds / sec.
+    # Benchmark (M1): 1555 rounds / second = 5.5M rounds / hour
 
     # Drain gracefully closes the connection, allowing all subscribers to
     # handle any pending messages inflight that the server may have sent.
